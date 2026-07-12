@@ -1,21 +1,47 @@
+const API_URL = "https://www.course-api.com/javascript-store-products";
+
+/**
+ * Fetches product data using fetch() with .then().
+ * This function demonstrates promise chaining.
+ */
 function fetchProductsThen() {
-  fetch("https://www.course-api.com/javascript-store-products")
-    .then(function(response) {
+  return fetch(API_URL)
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(
+          `Request failed with status ${response.status}`
+        );
+      }
+
       return response.json();
     })
-    .then(function(products) {
-      products.forEach(function(product) {
+    .then((products) => {
+      products.forEach((product) => {
         console.log(product.fields.name);
       });
+
+      return products;
     })
-    .catch(function(error) {
-      console.log("Fetch error:", error);
+    .catch((error) => {
+      handleError(error);
+      return [];
     });
 }
 
+/**
+ * Fetches product data using async/await and try/catch.
+ * The retrieved products are passed to displayProducts().
+ */
 async function fetchProductsAsync() {
   try {
-    const response = await fetch("https://www.course-api.com/javascript-store-products");
+    const response = await fetch(API_URL);
+
+    if (!response.ok) {
+      throw new Error(
+        `Request failed with status ${response.status}`
+      );
+    }
+
     const products = await response.json();
 
     displayProducts(products);
@@ -24,36 +50,113 @@ async function fetchProductsAsync() {
   }
 }
 
+/**
+ * Displays the first five products on the page.
+ *
+ * @param {Array} products - Product data returned by the API.
+ */
 function displayProducts(products) {
-  const productContainer = document.getElementById("product-container");
+  const productContainer = document.querySelector("#product-container");
 
-  for (let i = 0; i < 5; i++) {
-    const product = products[i];
+  if (!productContainer) {
+    console.error("The product container could not be found.");
+    return;
+  }
 
-    const productCard = document.createElement("div");
+  productContainer.innerHTML = "";
+  productContainer.setAttribute("aria-busy", "false");
+
+  if (!Array.isArray(products) || products.length === 0) {
+    productContainer.innerHTML = `
+      <p class="empty-message">
+        No products are currently available.
+      </p>
+    `;
+    return;
+  }
+
+  const firstFiveProducts = products.slice(0, 5);
+
+  for (const product of firstFiveProducts) {
+    const productName = product.fields?.name ?? "Unnamed Product";
+    const productImage =
+      product.fields?.image?.[0]?.url ?? "";
+    const productPrice =
+      typeof product.fields?.price === "number"
+        ? product.fields.price / 100
+        : 0;
+
+    const productCard = document.createElement("article");
     productCard.classList.add("product-card");
 
-    const productImage = document.createElement("img");
-    productImage.src = product.fields.image[0].url;
-    productImage.alt = product.fields.name;
+    const image = document.createElement("img");
+    image.classList.add("product-image");
+    image.src = productImage;
+    image.alt = productName;
+    image.loading = "lazy";
 
-    const productName = document.createElement("h3");
-    productName.textContent = product.fields.name;
+    image.addEventListener("error", () => {
+      image.removeAttribute("src");
+      image.alt = `${productName} image unavailable`;
+    });
 
-    const productPrice = document.createElement("p");
-    productPrice.textContent = "$" + (product.fields.price / 100).toFixed(2);
+    const productDetails = document.createElement("div");
+    productDetails.classList.add("product-details");
 
-    productCard.appendChild(productImage);
-    productCard.appendChild(productName);
-    productCard.appendChild(productPrice);
+    const nameElement = document.createElement("h2");
+    nameElement.classList.add("product-name");
+    nameElement.textContent = productName;
 
-    productContainer.appendChild(productCard);
+    const priceElement = document.createElement("p");
+    priceElement.classList.add("product-price");
+    priceElement.textContent = productPrice.toLocaleString(
+      "en-US",
+      {
+        style: "currency",
+        currency: "USD"
+      }
+    );
+
+    productDetails.append(nameElement, priceElement);
+    productCard.append(image, productDetails);
+    productContainer.append(productCard);
   }
 }
 
+/**
+ * Handles API and application errors.
+ *
+ * @param {Error} error - The error that occurred.
+ */
 function handleError(error) {
-  console.log("An error occurred:", error.message);
+  console.error("An error occurred:", error);
+
+  const productContainer = document.querySelector("#product-container");
+
+  if (!productContainer) {
+    return;
+  }
+
+  productContainer.setAttribute("aria-busy", "false");
+
+  productContainer.innerHTML = `
+    <div class="error-message" role="alert">
+      <h2>Unable to load products</h2>
+      <p>
+        The products could not be loaded. Please check your
+        connection and try again later.
+      </p>
+    </div>
+  `;
 }
+
+/*
+  Both fetch approaches are included to demonstrate the two required
+  asynchronous JavaScript techniques.
+
+  The .then() version logs product names to the console.
+  The async/await version displays the products on the page.
+*/
 
 fetchProductsThen();
 fetchProductsAsync();
